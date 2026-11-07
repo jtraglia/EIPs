@@ -26,27 +26,29 @@ This EIP defines a deliberately narrow fork for that scenario. It replaces the s
 
 Validators and builders sign with XMSS instead of BLS. XMSS public keys are 32 bytes and signatures are about 2.4 KB, compared with 48 and 96 bytes for BLS.
 
-XMSS is stateful. Each key has about four billion one-time leaves, and signing two different messages with the same leaf compromises that leaf. The protocol therefore assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Leaves are assigned as follows:
+XMSS is stateful. Each key covers 2<sup>32</sup> one-time leaves, and signing two different messages with the same leaf compromises that leaf. The protocol therefore assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Leaves are assigned as follows:
 
 - Attestations use one leaf per target epoch.
-- Other duties, such as blocks, aggregates, payload timeliness committee (PTC) votes, bids, and payload envelopes, use one leaf per slot and message type.
-- Messages signed at most once per key, such as voluntary exits and preregistrations, use reserved leaves.
+- Messages signed regularly, such as block proposals, use one leaf per slot and message type.
+- Messages signed at most once per key, such as voluntary exits, use reserved leaves.
 
 Under this assignment, an honest validator never signs two different messages with the same leaf, and a single key covers many decades of duties without rotation.
 
 ### Attestation aggregation
 
-XMSS does not support native aggregation, so aggregate attestations no longer carry a signature. Instead, an aggregator attaches a STARK proof of the signatures it collected, and the proposer merges these proofs into a single proof covering every attestation in its block. Because aggregates are larger than with BLS, fewer aggregators are selected per committee.
-
-Blocks no longer include payload attestations, so proposers do not need to aggregate them. PTC members still broadcast their votes, and fork choice uses them as before.
+XMSS does not support native aggregation, so aggregate attestations no longer carry a signature. Instead, an aggregator attaches a STARK proof of the signatures it collected, and the proposer merges these proofs into a single proof covering every attestation in its block.
 
 ### Randomness
 
 Because XMSS signatures are not unique, a proposer could grind a signature-based RANDAO reveal. Instead, each validator commits to a VRF root: the root of a Merkle tree of secret per-slot values. A validator's RANDAO reveal for a slot is that slot's leaf and its Merkle branch, and the same value serves as its aggregator selection proof. Because the tree is fixed at registration, a proposer cannot grind its reveal and, as with BLS, can only choose whether to publish its block.
 
-### Removed features
+### Sync committees
 
-Sync committees and the light client protocol are removed in favor of [EIP-8025](./eip-8025.md) optional proofs. Sync committee rewards are no longer issued, which reduces issuance by about 3%. BLS-signed withdrawal credential changes are also disabled, because their signatures could be forged.
+Sync committees and the light client protocol are removed in favor of [EIP-8025](./eip-8025.md) optional proofs. Without native aggregation, the 512 sync committee signatures per slot would add either about 1.2 MB to each block or a second STARK proof competing with attestations for prover capacity, solely to serve light clients. Sync committee rewards are no longer issued; the resulting reduction in issuance, about 3%, is a side effect rather than a goal.
+
+### Withdrawal credential changes
+
+BLS-signed withdrawal credential changes are no longer accepted. This fork assumes that BLS signatures can no longer be trusted, so an attacker could forge such a change to redirect a validator's withdrawals to an address it controls. Validators with `0x00` withdrawal credentials must therefore set a withdrawal address before the fork. Those that do not can neither register an XMSS key through EIP-8483 nor withdraw their funds after the fork.
 
 ### Deposits and execution layer requests
 
@@ -79,10 +81,6 @@ Once BLS is broken, a BLS signature can no longer authenticate a new key. Keys m
 ### Exiting unregistered validators
 
 A validator without a registered key has no key the protocol can trust. Retaining its BLS key would let a quantum adversary act on its behalf, and keeping it active without a usable key would only incur missed duties and inactivity penalties. Exiting it immediately, without waiting in the exit queue, returns its funds to its owner. This does not apply to validators that still have `0x00` withdrawal credentials at the fork: they have no withdrawal address, and setting one requires a BLS signature.
-
-### Replacing sync committees
-
-Sync committees produce 512 signatures per slot that serve only light clients. With XMSS, each signature is about 2.4 KB, and proving them would compete with attestations for prover capacity. Relying on EIP-8025 optional proofs avoids migrating them and keeps the fork small.
 
 ### Unsigned deposits
 
