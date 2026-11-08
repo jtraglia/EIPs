@@ -16,19 +16,19 @@ This EIP replaces BLS with XMSS for consensus signatures while leaving the conse
 
 ## Motivation
 
-The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign blocks and attestations on behalf of any validator, finalize conflicting checkpoints, and exit validators at will. Because the timeline for such a computer is uncertain, Ethereum should move its consensus layer off elliptic curves before one exists.
+The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat.
 
-This EIP defines a deliberately narrow fork for that transition. It replaces the signature scheme and changes only what the replacement requires. This keeps the change small enough to specify, implement, and test in advance, so that it can be scheduled quickly when needed. A broader post-quantum redesign of consensus can follow separately.
+This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus (i.e., [EIP-8453](./eip-8483.md)) can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
 
 ## Specification
 
 ### Signatures
 
-Validators and builders sign with XMSS instead of BLS. XMSS public keys are 32 bytes and signatures are about 2.4 KB, compared with 48 and 96 bytes for BLS.
+Validators and builders sign with XMSS instead of BLS. Under XMSS, public keys are 32 bytes and signatures are 2404 bytes, compared to 48 and 96 bytes under BLS.
 
 XMSS is stateful. Each key covers approximately 4 billion one-time leaves, and signing two different messages with the same leaf compromises that leaf. The protocol therefore assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Leaves are assigned as follows:
 
-- Attestations use one leaf per target epoch.
+- Attestations use one leaf per epoch.
 - Messages signed regularly, such as block proposals, use one leaf per slot and message type.
 - Messages signed at most once per key, such as voluntary exits, use reserved leaves.
 
