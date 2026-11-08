@@ -1,6 +1,6 @@
 ---
 title: Post-Quantum Consensus Signatures
-description: Replace BLS with XMSS hash-based signatures
+description: Replace BLS with XMSS
 author: Justin Traglia (@jtraglia)
 discussions-to: https://ethereum-magicians.org/t/TODO
 status: Draft
@@ -12,13 +12,13 @@ requires: 7732, 8025, 8205, 8483
 
 ## Abstract
 
-This EIP replaces BLS signatures in the consensus layer with XMSS, a hash-based post-quantum signature scheme, and leaves the consensus mechanism, Gasper, unchanged. Attestations are aggregated with STARK proofs, RANDAO reveals come from a precommitted Merkle tree of secrets, and sync committees are removed in favor of [EIP-8025](./eip-8025.md) optional proofs. Validators and builders register XMSS keys in advance through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and all others are exited.
+This EIP replaces BLS with XMSS for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
 
 ## Motivation
 
-The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign blocks and attestations on behalf of any validator, finalize conflicting checkpoints, and exit validators at will. Once this threat is credible, Ethereum will need a consensus layer that does not depend on elliptic curves, possibly on short notice.
+The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign blocks and attestations on behalf of any validator, finalize conflicting checkpoints, and exit validators at will. Because the timeline for such a computer is uncertain, Ethereum should move its consensus layer off elliptic curves before one exists.
 
-This EIP defines a deliberately narrow fork for that scenario. It replaces the signature scheme and changes only what the replacement requires. This keeps the change small enough to specify, implement, and test in advance, so that it can be scheduled quickly when needed. A broader post-quantum redesign of consensus can follow separately.
+This EIP defines a deliberately narrow fork for that transition. It replaces the signature scheme and changes only what the replacement requires. This keeps the change small enough to specify, implement, and test in advance, so that it can be scheduled quickly when needed. A broader post-quantum redesign of consensus can follow separately.
 
 ## Specification
 
@@ -26,7 +26,7 @@ This EIP defines a deliberately narrow fork for that scenario. It replaces the s
 
 Validators and builders sign with XMSS instead of BLS. XMSS public keys are 32 bytes and signatures are about 2.4 KB, compared with 48 and 96 bytes for BLS.
 
-XMSS is stateful. Each key covers 2<sup>32</sup> one-time leaves, and signing two different messages with the same leaf compromises that leaf. The protocol therefore assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Leaves are assigned as follows:
+XMSS is stateful. Each key covers approximately 4 billion one-time leaves, and signing two different messages with the same leaf compromises that leaf. The protocol therefore assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Leaves are assigned as follows:
 
 - Attestations use one leaf per target epoch.
 - Messages signed regularly, such as block proposals, use one leaf per slot and message type.
