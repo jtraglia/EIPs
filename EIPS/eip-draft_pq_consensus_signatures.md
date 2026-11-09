@@ -16,7 +16,7 @@ This EIP replaces BLS with XMSS for consensus signatures while leaving the conse
 
 ## Motivation
 
-The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat. This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
+The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat. This EIP defines the minimal set of changes required to switch to XMSS signatures.
 
 ## Specification
 
@@ -34,7 +34,7 @@ Because XMSS signatures are not unique, a proposer could grind a signature-based
 
 ### Execution Requests
 
-Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed; instead, the first 32 bytes of the signature field hold the new validator's VRF root. Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that begins exiting immediately, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed. Instead, the first 32 bytes of the signature field hold the new validator's VRF root. Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that is immediately exited, and its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
 
 ### Preregistrations
 
@@ -48,7 +48,7 @@ Sync committees remain an open question. Without native aggregation, the 512 syn
 
 ### XMSS
 
-Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. The XMSS variant used here is designed for Ethereum consensus, with small public keys and signatures that are efficient to prove in a STARK. Its main drawback, statefulness, is addressed by deriving every leaf from a slot or epoch, so validators keep no signing state beyond what slashing protection already records.
+Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. The leanXMSS variant is designed for Ethereum consensus, with small public keys, and with signatures that are efficient to prove in a STARK. Its main drawback, statefulness, is addressed by deriving every leaf from a slot or epoch, so validators keep no signing state beyond what slashing protection already records.
 
 ### Contingency Plan
 
@@ -78,11 +78,11 @@ Signing two different messages with the same leaf compromises that leaf, allowin
 
 ### Mass Exits
 
-All unregistered stake exits at the fork. If registration is low, the active validator set shrinks abruptly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and PTC votes already assigned to unregistered validators in the first epochs after the fork will be missed.
+All unregistered stake exits at the fork. If registration is low, the active validator set shrinks abruptly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and payload timeliness committee votes already assigned to unregistered validators in the first epochs after the fork will be missed.
 
 ### Denial of Service
 
-Most messages will be larger with XMSS. Larger messages make the peer-to-peer network more vulnerable to denial-of-service attacks. Every invalid message an attacker sends costs peers far more bandwidth than it would with BLS.
+With XMSS, most messages are larger, which makes the peer-to-peer network more vulnerable to denial-of-service attacks. Every invalid message an attacker sends costs peers far more bandwidth than it would with BLS.
 
 ## Copyright
 
