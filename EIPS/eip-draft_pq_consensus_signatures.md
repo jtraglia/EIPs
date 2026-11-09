@@ -38,24 +38,21 @@ In execution requests, the XMSS public key goes in the BLS public key field. In 
 
 ### Request Migration
 
-At the fork, each pending deposit for an existing validator is updated to name that validator's new XMSS public key, so it still tops the validator up. A top-up for an unregistered validator does not consume churn, since the validator is already withdrawable, and is withdrawn with the rest of its balance. A pending deposit for a new validator keeps its BLS public key and is processed as a legacy deposit. Pending withdrawals and consolidations identify validators by index, so the fork leaves them unchanged. [EIP-8483](./eip-8483.md) registration requests are no longer accepted after the fork.
+At the fork, each pending deposit for an existing validator is updated to name that validator's new XMSS public key, so it still tops the validator up. A top-up for an unregistered validator does not consume churn, since the validator is already withdrawable, and is withdrawn with the rest of its balance. A pending deposit for a new validator keeps its BLS public key and is processed as a legacy deposit. Pending withdrawals and consolidations identify validators by index, so the fork leaves them unchanged.
 
-### Removed Operations
+### Removed Features
 
-BLS-signed withdrawal credential changes are no longer accepted, and blocks no longer carry payload attestations.
+BLS-signed withdrawal credential changes are no longer accepted, since an attacker who can forge BLS signatures could use one to redirect a validator's withdrawals. Blocks no longer carry payload attestations, which spares proposers from aggregating them with a second STARK proof. Execution requests no longer carry [EIP-8483](./eip-8483.md) registrations, since registrations only take effect at the fork. Proposer and attester slashings of messages signed before the fork are no longer accepted, since verifying their BLS signatures would require BLS public keys that the state no longer holds.
+
+### Networking
+
+Attestation subnets are reduced from 64 to 16, so more of each committee's attestations share a subnet and aggregators collect them faster. The `attnets` bitfield keeps its length, so node metadata and ENRs are unchanged, but only the bits of the first 16 subnets may be set. The target number of aggregators per committee is reduced from 16 to 4, which reduces the number of large aggregates propagated across the network.
 
 ## Rationale
 
 ### XMSS
 
-Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. This EIP uses leanXMSS, a variant of XMSS designed for Ethereum consensus, with small public keys, and with signatures that are efficient to prove in a STARK.
-
-XMSS is built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root. XMSS differs from BLS in a few key ways.
-
-- XMSS signatures are much larger, which increases the size of every signed message. Public keys are slightly smaller.
-- XMSS is stateful. Each key has about 4 billion leaves, and signing two different messages at the same leaf compromises that leaf. Because each signed message has a fixed leaf, an honest signer never reuses a leaf and needs no signing state beyond what slashing protection already records. Under this assignment, a single key lasts many decades without rotation.
-- XMSS does not support native aggregation. STARK proofs take the place of aggregate signatures.
-- XMSS signatures are not unique, so a proposer could grind a signature-based RANDAO reveal. Instead, each validator commits to a VRF root, which is the root of a Merkle tree of secret values, one per slot. Because the tree is fixed in advance, a proposer cannot grind its reveal and, as with BLS, can only choose whether to publish its block. Builders do not need a VRF root, since they neither propose blocks nor aggregate attestations.
+Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. This EIP uses leanXMSS, a variant of XMSS designed for Ethereum consensus, with small public keys, and with signatures that are efficient to prove in a STARK. XMSS is stateful, since signing two different messages at the same leaf compromises it, but assigning each message a fixed leaf makes this manageable. Compared with SPHINCS+, the stateless alternative, XMSS signatures are about a third of the size and about three times faster to prove in a STARK with current implementations.
 
 ### Contingency Plan
 
@@ -65,11 +62,13 @@ Replacing BLS with XMSS without changing the consensus mechanism would address t
 
 A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK proof verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. Without signatures, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. [EIP-8205](./eip-8205.md) preregistrations prevent this. Keeping the existing request formats avoids changes to the existing execution layer contracts.
 
-### Removed Operations
+### Removed Features
 
 Blocks no longer carry payload attestations because, without native aggregation, proposers would have to aggregate them with another STARK proof. Fork choice still receives these votes through gossip.
 
 BLS-signed withdrawal credential changes are disabled because, once BLS can be forged, an attacker could use one to redirect a validator's withdrawals to an address it controls. Validators with `0x00` withdrawal credentials must therefore set a withdrawal address before the fork.
+
+Slashings of messages signed before the fork are not supported because those messages carry BLS signatures, and verifying them would require the BLS public keys of pre-fork validators, which the state no longer holds. Keeping these keys would add 48 bytes per validator to the state. A later upgrade could support these slashings with proofs against the pre-fork state instead.
 
 ### Unregistered Keys
 
@@ -99,7 +98,11 @@ All unregistered stake exits at the fork. If registration is low, the active val
 
 ### Instant Exits
 
-Validators that do not register skip the exit queue and the withdrawal delay, so they can withdraw their full balance at the fork. Slashed validators are the exception: they keep their withdrawal delay, so their full slashing penalty still applies. However, slashing evidence signed with BLS cannot be included after the fork, so offenses committed shortly before the fork may never be slashed. An attacker could therefore attack consensus in the final epochs before the fork, for example by trying to finalize conflicting checkpoints, and leave with its stake intact as long as it is not slashed before the fork. Not registering also lets any validator, including one already in the exit queue, leave at the fork instead of at the rate the churn limit normally allows.
+Validators that do not register skip the exit queue and the withdrawal delay, so they can withdraw their full balance at the fork. Slashed validators are the exception: they keep their withdrawal delay, so their full slashing penalty still applies. Not registering also lets any validator, including one already in the exit queue, leave at the fork instead of at the rate the churn limit normally allows.
+
+### Pre-Fork Offenses
+
+Slashings of messages signed before the fork are not accepted after it, so an offense that is not slashed before the fork goes unpunished, whether or not the validator registered. An attacker could exploit this by attacking consensus in the final epochs before the fork, for example by trying to finalize conflicting checkpoints. If its validators do not register, they can also withdraw their full balance at the fork, so the attacker leaves with its stake intact. Any later upgrade that supports these slashings must stop accepting them before BLS signatures can be forged, or a quantum adversary could forge slashings against any validator from before the fork.
 
 ### Denial of Service
 
