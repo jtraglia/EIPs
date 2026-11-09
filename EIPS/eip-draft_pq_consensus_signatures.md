@@ -12,7 +12,7 @@ requires: 7732, 8205, 8483
 
 ## Abstract
 
-This EIP replaces BLS with XMSS for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
+This EIP replaces BLS with XMSS for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Because XMSS has no native aggregation, STARK proofs replace aggregate signatures. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
 
 ## Motivation
 
@@ -22,45 +22,75 @@ The consensus layer relies on BLS signatures, which a sufficiently capable quant
 
 ### Signatures
 
-Validators and builders sign with leanXMSS, a variant of XMSS designed for Ethereum consensus, instead of BLS. XMSS is a hash-based scheme built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root. XMSS differs from BLS in a few key ways.
-
-- XMSS signatures are much larger. A signature is 2404 bytes, compared to 96 bytes for BLS, which increases the size of every signed message. Public keys are 32 bytes, slightly smaller than the 48 bytes of a BLS public key.
-- XMSS is stateful. Each key has about 4 billion leaves, and signing two different messages with the same leaf compromises that leaf. To prevent reuse, the protocol assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Attestations use one leaf per epoch, other regular messages such as block proposals use one leaf per slot and message type, and one-time messages such as voluntary exits use reserved leaves. As a result, an honest validator never reuses a leaf, and a single key lasts many decades without rotation.
-- XMSS does not support native aggregation. Instead of an aggregate signature, an aggregator attaches a STARK proof of the signatures it collected, and the proposer merges these proofs into a single proof covering every attestation in its block.
+- An XMSS public key replaces the BLS public key in validator and builder containers.
+- Every signed message carries an XMSS signature in place of a BLS signature, except for aggregate attestations, which no longer carry a signature.
+- In place of aggregate signatures, aggregators attach a STARK proof to each aggregate they publish, and the proposer merges these proofs into a single proof covering every attestation in its block.
+- Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, and attestations use a leaf derived from their target epoch. Messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes its leaf index, and verification checks that it matches the expected leaf.
 
 ### Randomness
 
-Because XMSS signatures are not unique, a proposer could grind a signature-based RANDAO reveal. Instead, each validator commits to a VRF root, which is the root of a Merkle tree of secret per-slot values. A validator's RANDAO reveal for a slot is that slot's leaf and its Merkle branch, and the same value serves as its aggregator selection proof. Because the tree is fixed at registration, a proposer cannot grind its reveal and, as with BLS, can only choose whether to publish its block.
+- A VRF root is added to the validator container.
+- RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Each is the validator's secret value for the slot, with a Merkle branch to its VRF root.
 
 ### Execution Requests
 
-Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed. Instead, the first 32 bytes of the signature field hold the new validator's VRF root. Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that is immediately exited, and its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+- A request's 48-byte public key field holds 16 zero bytes followed by the 32-byte XMSS public key, so request formats are unchanged.
+- Deposits are unsigned. The first 32 bytes of a deposit's signature field hold the VRF root of the validator it creates.
+- Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that is immediately exited, and its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
 
 ### Preregistrations
 
-This EIP incorporates [EIP-8205](./eip-8205.md) preregistrations, adapted to XMSS. Because deposits are unsigned, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. To prevent this, a key holder can first submit a preregistration, signed with a reserved leaf, that binds the key to its withdrawal credentials and VRF root. While the binding is active, deposits for that key that do not match it are discarded.
+- A new execution request type carries [EIP-8205](./eip-8205.md) preregistrations, adapted to XMSS. A preregistration is signed at a reserved leaf and binds a key to its withdrawal credentials and VRF root.
+- While a preregistration is active, deposits for its key that do not match it are discarded.
+
+### Removed Operations
+
+- BLS-signed withdrawal credential changes are no longer accepted.
+- Blocks no longer carry payload attestations. Payload timeliness committee votes still reach fork choice through gossip.
+
+### Fork Transition
+
+- At the fork, validators and builders that registered through [EIP-8483](./eip-8483.md) switch to their registered XMSS public key, and validators adopt their registered VRF root. Indices are unchanged.
+- Validators and builders without a registered key are exited.
 
 ### Sync Committees
 
-Sync committees remain an open question. Without native aggregation, the 512 sync committee signatures per slot would add about 1.2 MB to each block, or require a second STARK proof competing with attestations for prover capacity, solely to serve light clients. The goal is to make sync committees practical with XMSS. If that is not possible, sync committees may need to be deprecated, and light clients would instead rely on an alternative such as [EIP-8025](./eip-8025.md) optional proofs.
+- Changes to sync committees are not yet specified.
 
 ## Rationale
 
 ### XMSS
 
-Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. The leanXMSS variant is designed for Ethereum consensus, with small public keys, and with signatures that are efficient to prove in a STARK. Its main drawback, statefulness, is addressed by deriving every leaf from a slot or epoch, so validators keep no signing state beyond what slashing protection already records.
+Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. This EIP uses leanXMSS, a variant of XMSS designed for Ethereum consensus, with small public keys, and with signatures that are efficient to prove in a STARK.
+
+XMSS is built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root. XMSS differs from BLS in a few key ways.
+
+- XMSS signatures are much larger, which increases the size of every signed message. Public keys are slightly smaller.
+- XMSS is stateful. Each key has about 4 billion leaves, and signing two different messages at the same leaf compromises that leaf. Because each signed message has a fixed leaf, an honest signer never reuses a leaf and needs no signing state beyond what slashing protection already records. Under this assignment, a single key lasts many decades without rotation.
+- XMSS does not support native aggregation. STARK proofs take the place of aggregate signatures.
+- XMSS signatures are not unique, so a proposer could grind a signature-based RANDAO reveal. Instead, each validator commits to a VRF root, which is the root of a Merkle tree of secret values, one per slot. Because the tree is fixed in advance, a proposer cannot grind its reveal and, as with BLS, can only choose whether to publish its block. Builders do not need a VRF root, since they neither propose blocks nor aggregate attestations.
 
 ### Contingency Plan
 
 Replacing BLS with XMSS without changing the consensus mechanism would address the most critical vulnerability quickly. Even if this approach proves feasible but unattractive for other reasons, it can still serve as a contingency plan, ready to ship in an emergency while work on a new consensus mechanism continues. Evaluating its feasibility now avoids a situation where a new consensus mechanism must be shipped before it has been properly tested. If a new consensus mechanism turns out to be required to accommodate larger signatures, the work here is not wasted.
 
+### Unsigned Deposits
+
+A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK proof verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. Without signatures, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. [EIP-8205](./eip-8205.md) preregistrations prevent this. Keeping the existing request formats avoids changes to the existing execution layer contracts.
+
+### Removed Operations
+
+Blocks no longer carry payload attestations because, without native aggregation, proposers would have to aggregate them with another STARK proof. Fork choice still receives these votes through gossip.
+
+BLS-signed withdrawal credential changes are disabled because, once BLS can be forged, an attacker could use one to redirect a validator's withdrawals to an address it controls. Validators with `0x00` withdrawal credentials must therefore set a withdrawal address before the fork.
+
 ### Unregistered Keys
 
 Validators and builders without a registered key are exited because the protocol has no key it can trust for them. Keeping their BLS keys would let a quantum adversary act on their behalf, and keeping them active without a usable key would only lead to missed duties. Exiting them returns their funds to their owners, except for `0x00` validators, whose funds remain locked because they have not set a withdrawal address.
 
-### Unsigned Deposits
+### Sync Committees
 
-A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. The remaining risk, deposit front-running, is addressed by [EIP-8205](./eip-8205.md) preregistrations. Keeping the existing request formats avoids changes to the execution layer contracts.
+Sync committees remain an open question. Without native aggregation, the 512 sync committee signatures per slot would add about 1.2 MB to each block, or require a second STARK proof competing with attestations for prover capacity, solely to serve light clients. The goal is to make sync committees practical with XMSS. If that is not possible, sync committees may need to be deprecated, and light clients would instead rely on an alternative such as [EIP-8025](./eip-8025.md) optional proofs.
 
 ### Scope
 
@@ -74,11 +104,11 @@ This EIP changes consensus rules and requires a hard fork. It fully replaces BLS
 
 ### Leaf Reuse
 
-Signing two different messages with the same leaf compromises that leaf, allowing anyone to forge signatures with it. Running a key on multiple machines, or restoring a key without its slashing protection history, is therefore more dangerous than with BLS. Some protocol behavior also becomes a signing constraint. For example, a builder cannot bid on two different parents in the same slot, and a proposer cannot sign preferences for the same slot under two different dependent roots.
+Reusing a leaf for two different messages lets anyone forge signatures at that leaf. Running a key on multiple machines, or restoring a key without its slashing protection history, is therefore more dangerous than with BLS. Some protocol behavior also becomes a signing constraint. For example, a builder cannot raise a bid it has already broadcast or bid on two different parents in the same slot, and a proposer cannot sign preferences for the same slot under two different dependent roots.
 
 ### Mass Exits
 
-All unregistered stake exits at the fork. If registration is low, the active validator set shrinks abruptly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and payload timeliness committee votes already assigned to unregistered validators in the first epochs after the fork will be missed.
+All unregistered stake exits at the fork. If registration is low, the active validator set shrinks significantly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and payload timeliness committee votes already assigned to unregistered validators in the first epochs after the fork are missed.
 
 ### Denial of Service
 
