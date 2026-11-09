@@ -22,40 +22,23 @@ The consensus layer relies on BLS signatures, which a sufficiently capable quant
 
 ### Signatures
 
-- An XMSS public key replaces the BLS public key in validator and builder containers.
-- Every signed message carries an XMSS signature in place of a BLS signature, except for aggregate attestations, which no longer carry a signature.
-- In place of aggregate signatures, aggregators attach a STARK proof to each aggregate they publish, and the proposer merges these proofs into a single proof covering every attestation in its block.
-- Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, and attestations use a leaf derived from their target epoch. Messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes its leaf index, and verification checks that it matches the expected leaf.
-
-### Randomness
-
-- A VRF root is added to the validator container.
-- RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Each is the validator's secret value for the slot, with a Merkle branch to its VRF root.
-
-### Execution Requests
-
-- A request's 48-byte public key field holds 16 zero bytes followed by the 32-byte XMSS public key, so request formats are unchanged.
-- Deposits are unsigned. The first 32 bytes of a deposit's signature field hold the VRF root of the validator it creates.
-- Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that is immediately exited, and its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
-
-### Preregistrations
-
-- A new execution request type carries [EIP-8205](./eip-8205.md) preregistrations, adapted to XMSS. A preregistration is signed at a reserved leaf and binds a key to its withdrawal credentials and VRF root.
-- While a preregistration is active, deposits for its key that do not match it are discarded.
-
-### Removed Operations
-
-- BLS-signed withdrawal credential changes are no longer accepted.
-- Blocks no longer carry payload attestations. Payload timeliness committee votes still reach fork choice through gossip.
+XMSS public keys replace BLS public keys in validator and builder structures, and XMSS signatures replace BLS signatures in signed messages. Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, attestations use a leaf derived from their target epoch, and messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes the index of the leaf that produced it. Verifiers derive the expected leaf from the message and reject any signature with a different leaf index. Aggregate attestations no longer carry a signature. Instead, aggregators attach a STARK proof to each aggregate they publish, and the proposer merges these proofs into a single proof covering every attestation in its block.
 
 ### Fork Transition
 
-- At the fork, validators and builders that registered through [EIP-8483](./eip-8483.md) switch to their registered XMSS public key, and validators adopt their registered VRF root. Indices are unchanged.
-- Validators and builders without a registered key are exited.
+At the fork, validators that registered through [EIP-8483](./eip-8483.md) adopt their registered XMSS public key and VRF root, while builders that registered adopt only their XMSS public key. Validators and builders that did not register are exited.
 
-### Sync Committees
+### Randomness
 
-- Changes to sync committees are not yet specified.
+A VRF root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
+
+### Execution Requests
+
+In execution requests, the 48-byte public key field holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed, and the first 32 bytes of a deposit's signature field instead hold the VRF root of the validator it creates. Requests that still contain a BLS public key, including those submitted before the fork, are legacy requests. A legacy deposit creates a validator or builder that is immediately exited, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+
+### Removed Operations
+
+BLS-signed withdrawal credential changes are no longer accepted, and blocks no longer carry payload attestations.
 
 ## Rationale
 
