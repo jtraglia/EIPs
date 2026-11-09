@@ -24,17 +24,21 @@ The consensus layer relies on BLS signatures, which a sufficiently capable quant
 
 XMSS public keys replace BLS public keys in validator and builder structures, and XMSS signatures replace BLS signatures in signed messages. Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, attestations use a leaf derived from their target epoch, and messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes the index of the leaf that produced it. Verifiers derive the expected leaf from the message and reject any signature with a different leaf index. Aggregate attestations no longer carry a signature. Instead, aggregators attach a STARK proof to each aggregate they publish, and the proposer merges these proofs into a single proof covering every attestation in its block.
 
-### Fork Transition
-
-At the fork, validators that registered through [EIP-8483](./eip-8483.md) adopt their registered XMSS public key and VRF root, while builders that registered adopt only their XMSS public key. Validators and builders that did not register are exited.
-
-### Randomness
+### RANDAO
 
 A VRF root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
 
+### Key Migration
+
+At the fork, validators that registered through [EIP-8483](./eip-8483.md) adopt their registered XMSS public key and VRF root, while builders that registered adopt only their XMSS public key. Validators and builders that did not register are exited and become withdrawable at the fork, bypassing the exit queue and the usual withdrawal delay. Slashed validators keep their original withdrawal delay, so their slashing penalties still apply. Their XMSS public key and VRF root are the SHA-256 hashes of their BLS public key followed by distinct domain separators. No one knows the secrets for these values. The fork leaves the proposer and payload timeliness committee lookaheads unchanged, so duties assigned to unregistered validators before the fork are missed.
+
 ### Execution Requests
 
-In execution requests, the 48-byte public key field holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed, and the first 32 bytes of a deposit's signature field instead hold the VRF root of the validator it creates. Requests that still contain a BLS public key, including those submitted before the fork, are legacy requests. A legacy deposit creates a validator or builder that is immediately exited, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+In execution requests, the XMSS public key goes in the BLS public key field. In validator deposit requests, the VRF root goes in the BLS signature field, which is available because these requests are no longer signed. Requests that still contain a BLS public key are legacy requests, which are identified by a public key field that does not start with the 16 zero bytes that precede an XMSS public key. A legacy deposit uses the XMSS public key and VRF root derived from its BLS public key, as for validators and builders that did not register. A legacy deposit whose derived XMSS public key is new creates a validator or builder that is immediately exited, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+
+### Request Migration
+
+At the fork, each pending deposit for an existing validator is updated to name that validator's new XMSS public key, so it still tops the validator up. A top-up for an unregistered validator does not consume churn, since the validator is already withdrawable, and is withdrawn with the rest of its balance. A pending deposit for a new validator keeps its BLS public key and is processed as a legacy deposit. Pending withdrawals and consolidations identify validators by index, so the fork leaves them unchanged. [EIP-8483](./eip-8483.md) registration requests are no longer accepted after the fork.
 
 ### Removed Operations
 
@@ -92,6 +96,10 @@ Reusing a leaf for two different messages lets anyone forge signatures at that l
 ### Mass Exits
 
 All unregistered stake exits at the fork. If registration is low, the active validator set shrinks significantly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and payload timeliness committee votes already assigned to unregistered validators in the first epochs after the fork are missed.
+
+### Instant Exits
+
+Validators that do not register skip the exit queue and the withdrawal delay, so they can withdraw their full balance at the fork. Slashed validators are the exception: they keep their withdrawal delay, so their full slashing penalty still applies. However, slashing evidence signed with BLS cannot be included after the fork, so offenses committed shortly before the fork may never be slashed. An attacker could therefore attack consensus in the final epochs before the fork, for example by trying to finalize conflicting checkpoints, and leave with its stake intact as long as it is not slashed before the fork. Not registering also lets any validator, including one already in the exit queue, leave at the fork instead of at the rate the churn limit normally allows.
 
 ### Denial of Service
 
