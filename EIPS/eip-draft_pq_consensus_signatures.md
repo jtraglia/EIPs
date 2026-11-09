@@ -16,21 +16,17 @@ This EIP replaces BLS with XMSS for consensus signatures while leaving the conse
 
 ## Motivation
 
-The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat.
-
-This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
+The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat. This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
 
 ## Specification
 
 ### Signatures
 
-Validators and builders sign with leanXMSS, a variant of XMSS designed for Ethereum consensus, instead of BLS. XMSS is a hash-based scheme built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root.
+Validators and builders sign with leanXMSS, a variant of XMSS designed for Ethereum consensus, instead of BLS. XMSS is a hash-based scheme built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root. XMSS differs from BLS in a few key ways.
 
-XMSS signatures are much larger. A signature is 2404 bytes, compared to 96 bytes for BLS, which increases the size of every signed message. Public keys are 32 bytes, slightly smaller than the 48 bytes of a BLS public key.
-
-XMSS is stateful. Each key has about 4 billion leaves, and signing two different messages with the same leaf compromises that leaf. To prevent reuse, the protocol assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Attestations use one leaf per epoch, other regular messages such as block proposals use one leaf per slot and message type, and one-time messages such as voluntary exits use reserved leaves. As a result, an honest validator never reuses a leaf, and a single key lasts many decades without rotation.
-
-XMSS does not support native aggregation. Instead of an aggregate signature, an aggregator attaches a STARK proof of the signatures it collected, and the proposer merges these proofs into a single proof covering every attestation in its block.
+- XMSS signatures are much larger. A signature is 2404 bytes, compared to 96 bytes for BLS, which increases the size of every signed message. Public keys are 32 bytes, slightly smaller than the 48 bytes of a BLS public key.
+- XMSS is stateful. Each key has about 4 billion leaves, and signing two different messages with the same leaf compromises that leaf. To prevent reuse, the protocol assigns a fixed leaf to each signed message, and verification checks that the signature uses it. Attestations use one leaf per epoch, other regular messages such as block proposals use one leaf per slot and message type, and one-time messages such as voluntary exits use reserved leaves. As a result, an honest validator never reuses a leaf, and a single key lasts many decades without rotation.
+- XMSS does not support native aggregation. Instead of an aggregate signature, an aggregator attaches a STARK proof of the signatures it collected, and the proposer merges these proofs into a single proof covering every attestation in its block.
 
 ### Randomness
 
@@ -38,9 +34,7 @@ Because XMSS signatures are not unique, a proposer could grind a signature-based
 
 ### Execution Requests
 
-Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed; instead, the first 32 bytes of the signature field hold the new validator's VRF root.
-
-Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that begins exiting immediately, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed; instead, the first 32 bytes of the signature field hold the new validator's VRF root. Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that begins exiting immediately, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
 
 ### Preregistrations
 
@@ -58,7 +52,7 @@ Hash-based signatures depend only on the security of hash functions, among the m
 
 ### Contingency Plan
 
-Replacing BLS with XMSS without changing the consensus mechanism would address the most critical vulnerability quickly. This EIP is intended as a contingency plan that could be shipped in an emergency while work on a new consensus mechanism continues. Evaluating its feasibility now avoids a situation where a new consensus mechanism must be shipped before it has been properly tested. If a new consensus mechanism turns out to be required to accommodate larger signatures, the work here is not wasted.
+Replacing BLS with XMSS without changing the consensus mechanism would address the most critical vulnerability quickly. Even if this approach proves feasible but unattractive for other reasons, it can still serve as a contingency plan, ready to ship in an emergency while work on a new consensus mechanism continues. Evaluating its feasibility now avoids a situation where a new consensus mechanism must be shipped before it has been properly tested. If a new consensus mechanism turns out to be required to accommodate larger signatures, the work here is not wasted.
 
 ### Unregistered Keys
 
