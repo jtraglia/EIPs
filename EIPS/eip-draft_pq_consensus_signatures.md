@@ -24,7 +24,7 @@ This EIP defines the minimal set of changes required to switch to XMSS signature
 
 ### Signatures
 
-Validators and builders sign with XMSS instead of BLS. XMSS (eXtended Merkle Signature Scheme) is a hash-based scheme built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root.
+Validators and builders sign with leanXMSS, a variant of XMSS designed for Ethereum consensus, instead of BLS. XMSS is a hash-based scheme built from one-time signatures. A key consists of many one-time key pairs, called leaves, and the XMSS public key is the root of a Merkle tree over their public keys. A signature is a one-time signature from a single leaf, plus the Merkle path from that leaf to the root. To verify it, the verifier recomputes the leaf's public key from the one-time signature and checks that the path leads to the root.
 
 XMSS signatures are much larger. A signature is 2404 bytes, compared to 96 bytes for BLS, which increases the size of every signed message. Public keys are 32 bytes, slightly smaller than the 48 bytes of a BLS public key.
 
@@ -36,19 +36,15 @@ XMSS does not support native aggregation. Instead of an aggregate signature, an 
 
 Because XMSS signatures are not unique, a proposer could grind a signature-based RANDAO reveal. Instead, each validator commits to a VRF root, which is the root of a Merkle tree of secret per-slot values. A validator's RANDAO reveal for a slot is that slot's leaf and its Merkle branch, and the same value serves as its aggregator selection proof. Because the tree is fixed at registration, a proposer cannot grind its reveal and, as with BLS, can only choose whether to publish its block.
 
-### Deposits and execution layer requests
+### Execution requests
 
-Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Because a compressed BLS public key always has its most significant bit set, the two cannot be confused. Deposits are no longer signed; instead, the first 32 bytes of the signature field hold the new validator's VRF root.
+Execution layer request formats are unchanged, so existing contracts continue to work. The 48-byte public key field of a request holds 16 zero bytes followed by the 32-byte XMSS public key. Deposits are no longer signed; instead, the first 32 bytes of the signature field hold the new validator's VRF root.
 
-This EIP incorporates [EIP-8205](./eip-8205.md) preregistration, adapted to XMSS. Because deposits are unsigned, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. To prevent this, a key holder can first submit a preregistration, signed with a reserved leaf, that binds the key to its withdrawal credentials and VRF root. While the binding is active, deposits for that key that do not match it are discarded.
+Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests. A legacy deposit creates a validator or builder that begins exiting immediately, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
 
-Requests that still contain a BLS public key, such as those submitted before the fork or by outdated tooling, are treated as legacy requests:
+### Preregistrations
 
-- A legacy deposit creates a validator that is exited immediately and refunded after the withdrawability delay.
-- A legacy builder deposit creates a builder whose exit is initiated immediately.
-- Legacy withdrawal and consolidation requests are ignored.
-
-[EIP-8483](./eip-8483.md) registration requests are no longer processed after the fork.
+This EIP incorporates [EIP-8205](./eip-8205.md) validator preregistrations, adapted to XMSS. Because deposits are unsigned, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. To prevent this, a key holder can first submit a preregistration, signed with a reserved leaf, that binds the key to its withdrawal credentials and VRF root. While the binding is active, deposits for that key that do not match it are discarded.
 
 ### Sync committees
 
