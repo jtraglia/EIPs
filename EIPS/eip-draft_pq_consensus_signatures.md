@@ -18,7 +18,7 @@ This EIP replaces BLS with XMSS for consensus signatures while leaving the conse
 
 The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat.
 
-This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus (i.e., [EIP-8453](./eip-8453.md)) can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
+This EIP defines the minimal set of changes required to switch to XMSS signatures. A broader post-quantum redesign of consensus can follow separately. Limiting the scope allows the core vulnerability to be addressed sooner, independent of that larger effort.
 
 ## Specification
 
@@ -52,13 +52,13 @@ Sync committees remain an open question. Without native aggregation, the 512 syn
 
 ## Rationale
 
-### Minimally Viable Changes
-
-Replacing BLS with XMSS, without changing the consensus mechanism, would allow us to fix the most critical concern quickly. If for whatever reason a new consensus mechanism is required to facilate larger signatures, the work here will not be wasted. It is worthwhile to evaluate the practical feasibility of this idea in case we need to make a fix quickly. This EIP can serve as a shelved plan which could be shipped in case of an emergency, while we continue working on a new consensus mechanism which makes things easier. I do not want to be in a situation where we are forced into shipping a new consensus mechanism without proper testing.
-
 ### XMSS
 
 Hash-based signatures depend only on the security of hash functions, among the most conservative cryptographic assumptions. The XMSS variant used here is designed for Ethereum consensus, with small public keys and signatures that are efficient to prove in a STARK. Its main drawback, statefulness, is addressed by deriving every leaf from a slot or epoch, so validators keep no signing state beyond what slashing protection already records.
+
+### Contingency Plan
+
+Replacing BLS with XMSS without changing the consensus mechanism would address the most critical vulnerability quickly. This EIP is intended as a contingency plan that could be shipped in an emergency while work on a new consensus mechanism continues. Evaluating its feasibility now avoids a situation where a new consensus mechanism must be shipped before it has been properly tested. If a new consensus mechanism turns out to be required to accommodate larger signatures, the work here is not wasted.
 
 ### Unregistered Keys
 
@@ -86,7 +86,7 @@ All unregistered stake exits at the fork epoch, bypassing churn limits. If regis
 
 Most messages will be larger with XMSS. Larger messages make the peer-to-peer network more vulnerable to denial-of-service attacks. Every invalid message an attacker sends costs peers far more bandwidth than it would with BLS.
 
-### Scope
+## Scope
 
 This EIP covers consensus signatures only. Execution layer transaction signatures, the keys that control withdrawal addresses, KZG blob commitments, and peer-to-peer networking keys still rely on elliptic curves and require separate upgrades. In particular, [EIP-8483](./eip-8483.md) registrations are authorized by the withdrawal address, so they must be made while its key can still be trusted.
 
