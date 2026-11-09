@@ -62,6 +62,10 @@ Validators and builders without a registered key are exited because the protocol
 
 A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. The remaining risk, deposit front-running, is addressed by [EIP-8205](./eip-8205.md) validator preregistrations. Keeping the existing request formats avoids changes to the execution layer contracts.
 
+### Scope
+
+This EIP covers consensus signatures only. Execution layer transaction signatures, the keys that control withdrawal addresses, KZG blob commitments, and peer-to-peer networking keys still rely on elliptic curves and require separate upgrades. In particular, [EIP-8483](./eip-8483.md) registrations are authorized by the withdrawal address, so they must be made while its key can still be trusted.
+
 ## Backwards Compatibility
 
 This EIP changes consensus rules and requires a hard fork. It fully replaces BLS with XMSS in the consensus layer, so any software that produces, parses, or verifies consensus signatures must be updated. Validators and builders that have not registered with [EIP-8483](./eip-8483.md) are exited at the fork.
@@ -74,15 +78,11 @@ Signing two different messages with the same leaf compromises that leaf, allowin
 
 ### Mass Exits
 
-All unregistered stake exits at the fork epoch, bypassing churn limits. If registration is low, the active validator set shrinks abruptly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and PTC votes already assigned to unregistered validators in the first epochs after the fork will be missed.
+All unregistered stake exits at the fork. If registration is low, the active validator set shrinks abruptly, reducing the stake that secures finality and lowering the cost of attacks. Registration levels should be checked before the fork is scheduled. In addition, proposals and PTC votes already assigned to unregistered validators in the first epochs after the fork will be missed.
 
 ### Denial of Service
 
 Most messages will be larger with XMSS. Larger messages make the peer-to-peer network more vulnerable to denial-of-service attacks. Every invalid message an attacker sends costs peers far more bandwidth than it would with BLS.
-
-## Scope
-
-This EIP covers consensus signatures only. Execution layer transaction signatures, the keys that control withdrawal addresses, KZG blob commitments, and peer-to-peer networking keys still rely on elliptic curves and require separate upgrades. In particular, [EIP-8483](./eip-8483.md) registrations are authorized by the withdrawal address, so they must be made while its key can still be trusted.
 
 ## Copyright
 
