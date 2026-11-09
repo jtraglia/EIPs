@@ -52,9 +52,9 @@ Sync committees remain an open question. Without native aggregation, the 512 syn
 
 ## Rationale
 
-### Minimal Change
+### Minimally Viable Changes
 
-This EIP makes the smallest change possible so that it can ship quickly. It changes only what XMSS requires and leaves the rest of the protocol as is, so clients can build on existing code and reuse most existing tests.
+Replacing BLS with XMSS, without changing the consensus mechanism, would allow us to fix the most critical concern quickly. If for whatever reason a new consensus mechanism is required to facilate larger signatures, the work here will not be wasted. It is worthwhile to evaluate the practical feasibility of this idea in case we need to make a fix quickly. This EIP can serve as a shelved plan which could be shipped in case of an emergency, while we continue working on a new consensus mechanism which makes things easier. I do not want to be in a situation where we are forced into shipping a new consensus mechanism without proper testing.
 
 ### XMSS
 
