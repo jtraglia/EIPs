@@ -38,7 +38,7 @@ Execution layer request formats are unchanged, so existing contracts continue to
 
 ### Preregistrations
 
-This EIP incorporates [EIP-8205](./eip-8205.md) validator preregistrations, adapted to XMSS. Because deposits are unsigned, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. To prevent this, a key holder can first submit a preregistration, signed with a reserved leaf, that binds the key to its withdrawal credentials and VRF root. While the binding is active, deposits for that key that do not match it are discarded.
+This EIP incorporates [EIP-8205](./eip-8205.md) preregistrations, adapted to XMSS. Because deposits are unsigned, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. To prevent this, a key holder can first submit a preregistration, signed with a reserved leaf, that binds the key to its withdrawal credentials and VRF root. While the binding is active, deposits for that key that do not match it are discarded.
 
 ### Sync Committees
 
@@ -60,7 +60,7 @@ Validators and builders without a registered key are exited because the protocol
 
 ### Unsigned Deposits
 
-A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. The remaining risk, deposit front-running, is addressed by [EIP-8205](./eip-8205.md) validator preregistrations. Keeping the existing request formats avoids changes to the execution layer contracts.
+A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. The remaining risk, deposit front-running, is addressed by [EIP-8205](./eip-8205.md) preregistrations. Keeping the existing request formats avoids changes to the execution layer contracts.
 
 ### Scope
 
