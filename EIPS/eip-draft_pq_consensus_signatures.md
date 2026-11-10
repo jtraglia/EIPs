@@ -22,7 +22,7 @@ The consensus layer relies on BLS signatures, which a sufficiently capable quant
 
 ### Signatures
 
-XMSS public keys replace BLS public keys in validator and builder structures, and XMSS signatures replace BLS signatures in signed messages. Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, attestations use a leaf derived from their target epoch, and messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes the index of the leaf that produced it. Verifiers derive the expected leaf from the message and reject any signature with a different leaf index. Aggregate attestations no longer carry a signature. Instead, aggregators attach a STARK proof to each aggregate they publish, and the proposer merges these proofs into a single proof covering every attestation in its block.
+XMSS public keys replace BLS public keys in validator and builder structures, and XMSS signatures replace BLS signatures in signed messages. Each message is signed at a fixed leaf (one-time key pair). Most messages use a leaf derived from their slot and type, attestations use a leaf derived from their target epoch, and messages that a key signs at most once, such as voluntary exits, use reserved leaves. Each signature includes the index of the leaf that produced it. Verifiers derive the expected leaf from the message and reject any signature with a different leaf index. Aggregate attestations no longer carry a signature. Instead, aggregators attach a STARK proof to each aggregate they publish. Each block carries a single proof covering its attestations, which the proposer obtains by merging aggregate proofs or by reusing the proof of a single aggregate.
 
 ### RANDAO
 
@@ -95,6 +95,10 @@ Slashings of messages signed before the fork are not accepted after it, so an of
 ### Denial of Service
 
 With XMSS, most messages are larger, which makes the peer-to-peer network more vulnerable to denial-of-service attacks. Every invalid message an attacker sends costs peers far more bandwidth than it would with BLS.
+
+### Prover Capacity
+
+A block's proof normally comes from merging the proofs of all the aggregates it includes, which is relatively expensive. A proposer that cannot merge in time can still produce a valid block by reusing the proof of a single aggregate, but that block includes only one committee's attestations. This is harmless when it happens occasionally, since later proposers can include the attestations left out. If most proposers cannot merge, however, too few attestations reach the chain for it to justify and finalize.
 
 ## Copyright
 
