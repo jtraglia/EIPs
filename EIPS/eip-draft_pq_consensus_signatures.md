@@ -42,7 +42,7 @@ At the fork, each pending deposit for an existing validator is updated to name t
 
 ### Removed Features
 
-BLS-signed withdrawal credential changes are no longer accepted, since an attacker who can forge BLS signatures could use one to redirect a validator's withdrawals. Blocks no longer carry payload attestations, which spares proposers from aggregating them with a second STARK proof. Execution requests no longer carry [EIP-8483](./eip-8483.md) registrations, since registrations only take effect at the fork. Proposer and attester slashings of messages signed before the fork are no longer accepted, since verifying their BLS signatures would require BLS public keys that the state no longer holds.
+BLS-signed withdrawal credential changes are no longer accepted, since an attacker who can forge BLS signatures could use one to redirect a validator's withdrawals. Blocks no longer carry payload attestations, which spares proposers from aggregating them with a second STARK proof. Execution requests no longer carry [EIP-8483](./eip-8483.md) registrations, since registrations only take effect at the fork. Proposer and attester slashings of messages signed before the fork are no longer accepted, since verifying their BLS signatures would require BLS public keys that the state no longer holds. Sync committees and the light client protocol built on them are removed, since including their signatures in every block would be too costly.
 
 ### Networking
 
@@ -64,7 +64,7 @@ A BLS deposit signature is a proof of possession, which prevents rogue-key attac
 
 ### Sync Committees
 
-Sync committees remain an open question. Without native aggregation, the 512 sync committee signatures per slot would add about 1.2 MB to each block, or require a second STARK proof competing with attestations for prover capacity, solely to serve light clients. The goal is to make sync committees practical with XMSS. If that is not possible, sync committees may need to be deprecated, and light clients would instead rely on an alternative such as [EIP-8025](./eip-8025.md) optional proofs.
+Sync committees are removed because, without native aggregation, their 512 signatures per slot would add about 1.2 MB to each block, or require a second STARK proof competing with attestations for prover capacity, solely to serve light clients. Light clients can instead rely on an alternative such as [EIP-8025](./eip-8025.md) optional proofs.
 
 ### Scope
 
@@ -72,7 +72,7 @@ This EIP covers consensus signatures only. Execution layer transaction signature
 
 ## Backwards Compatibility
 
-This EIP changes consensus rules and requires a hard fork. It fully replaces BLS with XMSS in the consensus layer, so any software that produces, parses, or verifies consensus signatures must be updated. Validators and builders that have not registered with [EIP-8483](./eip-8483.md) are exited at the fork.
+This EIP changes consensus rules and requires a hard fork. It fully replaces BLS with XMSS in the consensus layer, so any software that produces, parses, or verifies consensus signatures must be updated. Validators and builders that have not registered with [EIP-8483](./eip-8483.md) are exited at the fork. Light clients that follow the chain through sync committees stop working at the fork.
 
 ## Security Considerations
 
