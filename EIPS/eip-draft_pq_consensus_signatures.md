@@ -1,13 +1,13 @@
 ---
 title: Post-Quantum Consensus Signatures
 description: Replace BLS with XMSS
-author: Justin Traglia (@jtraglia)
+author: Justin Traglia (@jtraglia), Mikhail Kalinin (@mkalinin), Kamil Salakhiev (@kamilsa)
 discussions-to: https://ethereum-magicians.org/t/TODO
 status: Draft
 type: Standards Track
 category: Core
 created: 2026-11-07
-requires: 7732, 8205, 8483
+requires: 7732, 8025, 8205, 8483
 ---
 
 ## Abstract
