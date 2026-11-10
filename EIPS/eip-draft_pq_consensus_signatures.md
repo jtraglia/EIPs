@@ -62,22 +62,6 @@ Replacing BLS with XMSS without changing the consensus mechanism would address t
 
 A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK proof verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. Without signatures, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. [EIP-8205](./eip-8205.md) preregistrations prevent this. Keeping the existing request formats avoids changes to the existing execution layer contracts.
 
-### Payload Attestations
-
-Blocks no longer carry payload attestations because, without native aggregation, proposers would have to aggregate them with another STARK proof. Fork choice still receives these votes through gossip.
-
-### Withdrawal Credential Changes
-
-BLS-signed withdrawal credential changes are disabled because, once BLS can be forged, an attacker could use one to redirect a validator's withdrawals to an address it controls. Validators with `0x00` withdrawal credentials must therefore set a withdrawal address before the fork.
-
-### Pre-Fork Slashings
-
-Slashings of messages signed before the fork are not supported because those messages carry BLS signatures, and verifying them would require the BLS public keys of pre-fork validators, which the state no longer holds. Keeping these keys would add 48 bytes per validator to the state. A later upgrade could support these slashings with proofs against the pre-fork state instead.
-
-### Unregistered Keys
-
-Validators and builders without a registered key are exited because the protocol has no key it can trust for them. Keeping their BLS keys would let a quantum adversary act on their behalf, and keeping them active without a usable key would only lead to missed duties. Exiting them returns their funds to their owners, except for `0x00` validators, whose funds remain locked because they have not set a withdrawal address.
-
 ### Sync Committees
 
 Sync committees remain an open question. Without native aggregation, the 512 sync committee signatures per slot would add about 1.2 MB to each block, or require a second STARK proof competing with attestations for prover capacity, solely to serve light clients. The goal is to make sync committees practical with XMSS. If that is not possible, sync committees may need to be deprecated, and light clients would instead rely on an alternative such as [EIP-8025](./eip-8025.md) optional proofs.
