@@ -1,7 +1,7 @@
 ---
 title: Post-Quantum Consensus Signatures
 description: Replace BLS with XMSS
-author: Justin Traglia (@jtraglia), Mikhail Kalinin (@mkalinin), Kamil Salakhiev (@kamilsa)
+author: Justin Traglia (@jtraglia), Mikhail Kalinin (@mkalinin), Kamil Salakhiev (@kamilsa), Thomas Coratger (@tcoratger)
 discussions-to: https://ethereum-magicians.org/t/TODO
 status: Draft
 type: Standards Track
@@ -16,7 +16,7 @@ This EIP replaces BLS with the eXtended Merkle Signature Scheme (XMSS) for conse
 
 ## Motivation
 
-The consensus layer relies on BLS signatures, which a sufficiently capable quantum computer could forge. Such an adversary could sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat. This EIP defines the minimal set of changes required to switch to XMSS signatures.
+The consensus layer relies on BLS signatures, which a cryptographically relevant quantum computer (CRQC) could forge, allowing an attacker to sign messages on behalf of any validator. The protocol must switch to a post-quantum signature scheme before there is a credible threat. This EIP defines the minimal set of changes required to switch to XMSS signatures.
 
 ## Specification
 
@@ -90,7 +90,7 @@ Validators that do not register skip the exit queue and the withdrawal delay, so
 
 ### Pre-Fork Offenses
 
-Slashings of messages signed before the fork are not accepted after it, so an offense that is not slashed before the fork goes unpunished, whether or not the validator registered. An attacker could exploit this by attacking consensus in the final epochs before the fork, for example by trying to finalize conflicting checkpoints. If its validators do not register, they can also withdraw their full balance at the fork, so the attacker leaves with its stake intact. Any later upgrade that supports these slashings must stop accepting them before BLS signatures can be forged, or a quantum adversary could forge slashings against any validator from before the fork.
+Slashings of messages signed before the fork are not accepted after it, so an offense that is not slashed before the fork goes unpunished, whether or not the validator registered. An attacker could exploit this by attacking consensus in the final epochs before the fork, for example by trying to finalize conflicting checkpoints. If its validators do not register, they can also withdraw their full balance at the fork, so the attacker leaves with its stake intact. Any later upgrade that supports these slashings must stop accepting them before BLS signatures can be forged, or an attacker with a CRQC could forge slashings against any validator from before the fork.
 
 ### Denial of Service
 
