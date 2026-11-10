@@ -62,11 +62,15 @@ Replacing BLS with XMSS without changing the consensus mechanism would address t
 
 A BLS deposit signature is a proof of possession, which prevents rogue-key attacks on aggregate signatures. A STARK proof verifies each signature against its own key, so this attack does not apply and no proof of possession is needed. Without signatures, anyone who observes the first deposit for a new key could front-run it with a deposit to their own withdrawal credentials. [EIP-8205](./eip-8205.md) preregistrations prevent this. Keeping the existing request formats avoids changes to the existing execution layer contracts.
 
-### Removed Features
+### Payload Attestations
 
 Blocks no longer carry payload attestations because, without native aggregation, proposers would have to aggregate them with another STARK proof. Fork choice still receives these votes through gossip.
 
+### Withdrawal Credential Changes
+
 BLS-signed withdrawal credential changes are disabled because, once BLS can be forged, an attacker could use one to redirect a validator's withdrawals to an address it controls. Validators with `0x00` withdrawal credentials must therefore set a withdrawal address before the fork.
+
+### Pre-Fork Slashings
 
 Slashings of messages signed before the fork are not supported because those messages carry BLS signatures, and verifying them would require the BLS public keys of pre-fork validators, which the state no longer holds. Keeping these keys would add 48 bytes per validator to the state. A later upgrade could support these slashings with proofs against the pre-fork state instead.
 
