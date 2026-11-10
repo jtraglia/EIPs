@@ -12,7 +12,7 @@ requires: 7732, 8025, 8205, 8483
 
 ## Abstract
 
-This EIP replaces BLS with the eXtended Merkle Signature Scheme (XMSS) for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Because XMSS has no native aggregation, STARK proofs replace aggregate signatures. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
+This EIP replaces the Boneh-Lynn-Shacham (BLS) signature scheme with the eXtended Merkle Signature Scheme (XMSS) for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Because XMSS has no native aggregation, scalable transparent argument of knowledge (STARK) proofs replace aggregate signatures. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
 
 ## Motivation
 
@@ -26,7 +26,7 @@ XMSS public keys replace BLS public keys in validator and builder structures, an
 
 ### RANDAO
 
-A verifiable random function (VRF) root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
+A verifiable random function (VRF) root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. Random decentralized autonomous organization (RANDAO) reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
 
 ### Key Migration
 
@@ -68,7 +68,7 @@ Sync committees are removed because, without native aggregation, their 512 signa
 
 ### Scope
 
-This EIP covers consensus signatures only. Execution layer transaction signatures, the keys that control withdrawal addresses, KZG blob commitments, and peer-to-peer networking keys still rely on elliptic curves and require separate upgrades. In particular, [EIP-8483](./eip-8483.md) registrations are authorized by the withdrawal address, so they must be made while its key can still be trusted.
+This EIP covers consensus signatures only. Execution layer transaction signatures, the keys that control withdrawal addresses, Kate-Zaverucha-Goldberg (KZG) blob commitments, and peer-to-peer networking keys still rely on elliptic curves and require separate upgrades. In particular, [EIP-8483](./eip-8483.md) registrations are authorized by the withdrawal address, so they must be made while its key can still be trusted.
 
 ## Backwards Compatibility
 
