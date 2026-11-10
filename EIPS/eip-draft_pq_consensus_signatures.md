@@ -12,7 +12,7 @@ requires: 7732, 8025, 8205, 8483
 
 ## Abstract
 
-This EIP replaces BLS with XMSS for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Because XMSS has no native aggregation, STARK proofs replace aggregate signatures. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
+This EIP replaces BLS with the eXtended Merkle Signature Scheme (XMSS) for consensus signatures while leaving the consensus mechanism unchanged. XMSS is a hash-based signature scheme that is believed to be post-quantum secure. Because XMSS has no native aggregation, STARK proofs replace aggregate signatures. Before the fork, validators and builders register XMSS keys through [EIP-8483](./eip-8483.md). At the fork, those that registered switch to their XMSS keys, and those that did not are exited.
 
 ## Motivation
 
@@ -26,7 +26,7 @@ XMSS public keys replace BLS public keys in validator and builder structures, an
 
 ### RANDAO
 
-A VRF root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
+A verifiable random function (VRF) root, the root of a Merkle tree of secret values with one per slot, is added to the validator structure. RANDAO reveals and aggregator selection proofs are no longer BLS signatures. Instead, each consists of the validator's secret value for the slot and a Merkle branch proving that value against the validator's VRF root.
 
 ### Key Migration
 
@@ -46,7 +46,7 @@ BLS-signed withdrawal credential changes are no longer accepted, since an attack
 
 ### Networking
 
-Attestation subnets are reduced from 64 to 16, so more of each committee's attestations share a subnet and aggregators collect them faster. The `attnets` bitfield keeps its length, so node metadata and ENRs are unchanged, but only the bits of the first 16 subnets may be set. The target number of aggregators per committee is reduced from 16 to 4, which reduces the number of large aggregates propagated across the network.
+Attestation subnets are reduced from 64 to 16, so more of each committee's attestations share a subnet and aggregators collect them faster. The `attnets` bitfield keeps its length, so node metadata and Ethereum Node Records (ENRs) are unchanged, but only the bits of the first 16 subnets may be set. The target number of aggregators per committee is reduced from 16 to 4, which reduces the number of large aggregates propagated across the network.
 
 ## Rationale
 
