@@ -34,7 +34,9 @@ At the fork, validators that registered through [EIP-8483](./eip-8483.md) adopt 
 
 ### Execution Requests
 
-In execution requests, the XMSS public key goes in the BLS public key field. In validator deposit requests, the VRF root goes in the BLS signature field, which is available because these requests are no longer signed. Requests that still contain a BLS public key are legacy requests, which are identified by a public key field that does not start with the 16 zero bytes that precede an XMSS public key. A legacy deposit uses the XMSS public key and VRF root derived from its BLS public key, as for validators and builders that did not register. A legacy deposit whose derived XMSS public key is new creates a validator or builder that is immediately exited, so its funds are returned after the usual delay. Legacy withdrawal and consolidation requests are ignored.
+On the execution layer, the system contracts and request formats are unchanged. On the consensus layer, request structures change their `BLSPubkey` fields to `Bytes48` and their `BLSSignature` fields to `Bytes96`. For all requests, an XMSS public key is stored in the public key field as 16 zero bytes followed by the 32-byte key. For validator deposits, a VRF root is stored in the first 32 bytes of the signature field, which is available because these requests are no longer signed.
+
+Requests that still contain a BLS public key are legacy requests. They are identified by a public key field that does not start with 16 zero bytes. Legacy withdrawal and consolidation requests are ignored. Legacy deposit requests use an XMSS public key derived from their BLS public key in the same way as the keys of unregistered validators and builders. If that key is new, the deposit creates a validator or builder that is immediately exited, so its funds are returned after the usual delay.
 
 ### Request Migration
 
